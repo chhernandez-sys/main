@@ -1,3 +1,4 @@
 using System;
 
-Console.WriteLine("hola mundo");
+Console.WriteLine("hola hola");
+Console.WriteLine("nuevo mundo");
