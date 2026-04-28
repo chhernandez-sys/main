@@ -51,9 +51,13 @@ jobs:
           git pull origin new_main
           git checkout -b cherry-pick-${{ steps.vars.outputs.sha }}
 
-      - name: Cherry-pick commit
+      - name: Cherry-pick commit (allow conflicts)
         run: |
-          git cherry-pick ${{ steps.vars.outputs.sha }} || echo "Conflict detected"
+          git cherry-pick ${{ steps.vars.outputs.sha }} || true
+
+      - name: Add changes (even with conflicts)
+        run: |
+          git add .
 
       - name: Push branch
         run: |
@@ -65,4 +69,4 @@ jobs:
           branch: cherry-pick-${{ steps.vars.outputs.sha }}
           base: new_main
           title: "Cherry-pick: ${{ steps.vars.outputs.sha }}"
-          body: "Automated cherry-pick"
+          body: "Automated cherry-pick (may contain conflicts)"
