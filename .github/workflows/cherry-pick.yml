@@ -59,9 +59,9 @@ jobs:
         run: |
           git add .
 
-      - name: Push branch
+      - name: Push branch (force)
         run: |
-          git push origin cherry-pick-${{ steps.vars.outputs.sha }}
+          git push --force origin cherry-pick-${{ steps.vars.outputs.sha }}
 
       - name: Create PR
         uses: peter-evans/create-pull-request@v6
