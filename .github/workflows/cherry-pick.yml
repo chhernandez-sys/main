@@ -51,21 +51,14 @@ jobs:
           git pull origin new_main
           git checkout -b cherry-pick-${{ steps.vars.outputs.sha }}
 
-      - name: Cherry-pick commit (allow conflicts)
+      - name: Cherry-pick commit
         run: |
-          git cherry-pick ${{ steps.vars.outputs.sha }} || true
+          git cherry-pick ${{ steps.vars.outputs.sha }} || echo "conflict"
 
-      - name: Add changes (even with conflicts)
+      - name: Handle conflict (if any)
         run: |
           git add .
-
-      - name: Commit changes (even if conflict)
-        run: |
-          git commit -m "cherry-pick ${{ steps.vars.outputs.sha }}" || true
-
-      - name: Push branch (force)
-        run: |
-          git push --force origin cherry-pick-${{ steps.vars.outputs.sha }}
+          git commit -m "cherry-pick ${{ steps.vars.outputs.sha }} (conflict)" || true
 
       - name: Create PR
         uses: peter-evans/create-pull-request@v6
