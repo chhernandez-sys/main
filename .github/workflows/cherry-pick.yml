@@ -1,0 +1,65 @@
+name: Cherry Pick Hybrid
+
+on:
+  pull_request:
+    types: [closed]
+
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit SHA to cherry-pick"
+        required: true
+
+jobs:
+  cherry-pick:
+    runs-on: ubuntu-latest
+
+    # Condición para ambos casos
+    if: >
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'cherry-pick'))
+      ||
+      (github.event_name == 'workflow_dispatch')
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set commit SHA
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "sha=${{ github.event.inputs.commit }}" >> $GITHUB_OUTPUT
+          else
+            echo "sha=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+      - name: Create branch from new_main
+        run: |
+          git checkout new_main
+          git pull origin new_main
+          git checkout -b cherry-pick-${{ steps.vars.outputs.sha }}
+
+      - name: Cherry-pick commit
+        run: |
+          git cherry-pick ${{ steps.vars.outputs.sha }} || echo "Conflict detected"
+
+      - name: Push branch
+        run: |
+          git push origin cherry-pick-${{ steps.vars.outputs.sha }}
+
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: cherry-pick-${{ steps.vars.outputs.sha }}
+          base: new_main
+          title: "Cherry-pick: ${{ steps.vars.outputs.sha }}"
+          body: "Automated cherry-pick"
