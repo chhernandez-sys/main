@@ -6,7 +6,7 @@ Instrucciones para ejecutar (Windows):
 2. Ir al directorio del proyecto:
 
 ```powershell
-cd C:\repos\main\HolaMundo
+cd C:\repos\main
 ```
 
 3. Ejecutar con dotnet:
