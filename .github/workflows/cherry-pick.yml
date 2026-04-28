@@ -10,11 +10,14 @@ on:
         description: "Commit SHA to cherry-pick"
         required: true
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   cherry-pick:
     runs-on: ubuntu-latest
 
-    # Condición para ambos casos
     if: >
       (github.event_name == 'pull_request' &&
        github.event.pull_request.merged == true &&
