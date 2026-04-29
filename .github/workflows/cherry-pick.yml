@@ -55,18 +55,18 @@ jobs:
           git checkout -B new_main origin/new_main
           git checkout -b cherry-pick-${{ github.run_id }}
 
-      # Cherry-pick (allow conflicts and still create PR)
+      # Cherry-pick (finalize even if there are conflicts)
       - name: Cherry-pick
         run: |
           if [ "${{ steps.vars.outputs.mode }}" = "commit" ]; then
             echo "Cherry-picking single commit"
             git cherry-pick ${{ steps.vars.outputs.value }} || true
           else
-            echo "Cherry-picking merge commit"
+            echo "Cherry-picking merge commit (works for merge, squash, rebase)"
             git cherry-pick -m 1 ${{ steps.vars.outputs.value }} || true
           fi
 
-          # ALWAYS try to finalize the cherry-pick
+          # Always try to finalize the cherry-pick
           git add .
           git commit --no-edit || true
 
