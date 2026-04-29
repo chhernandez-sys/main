@@ -66,9 +66,12 @@ jobs:
             git cherry-pick -m 1 ${{ steps.vars.outputs.value }} || true
           fi
 
-          # Commit even if there are conflicts so PR can be created
-          git add .
-          git commit -m "Cherry-pick (with possible conflicts)" || true
+          # If cherry-pick is in progress (conflicts), finalize it
+          if git rev-parse -q --verify CHERRY_PICK_HEAD >/dev/null; then
+            echo "Conflicts detected, finalizing cherry-pick"
+            git add .
+            git commit --no-edit
+          fi
 
       - name: Push branch
         run: |
