@@ -18,8 +18,8 @@ jobs:
   cherry-pick:
     runs-on: ubuntu-latest
 
-    # Run automatically when a PR is merged and has the 'cherry-pick' label
-    # Or run manually using workflow_dispatch
+    # Runs automatically when a PR is merged and has the 'cherry-pick' label
+    # Or can be triggered manually via workflow_dispatch
     if: >
       (github.event_name == 'pull_request' &&
        github.event.pull_request.merged == true &&
@@ -62,10 +62,7 @@ jobs:
           git checkout -B new_main origin/new_main
           git checkout -b cherry-pick-${{ github.run_id }}
 
-      # Apply the cherry-pick:
-      # - Single commit when run manually
-      # - Merge result when triggered from a PR
-      # Always finalize the operation, even if conflicts occur
+      # Apply the cherry-pick
       - name: Cherry-pick
         run: |
           if [ "${{ steps.vars.outputs.mode }}" = "commit" ]; then
@@ -87,7 +84,6 @@ jobs:
           git push origin HEAD
 
       # Create a pull request from the new branch into new_main
-      # Uses GitHub CLI with the workflow token for authentication
       - name: Create PR
         run: |
           gh pr create \
