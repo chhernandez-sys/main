@@ -62,16 +62,13 @@ jobs:
             echo "Cherry-picking single commit"
             git cherry-pick ${{ steps.vars.outputs.value }} || true
           else
-            echo "Cherry-picking merge commit (works for merge, squash, rebase)"
+            echo "Cherry-picking merge commit"
             git cherry-pick -m 1 ${{ steps.vars.outputs.value }} || true
           fi
 
-          # If cherry-pick is in progress (conflicts), finalize it
-          if git rev-parse -q --verify CHERRY_PICK_HEAD >/dev/null; then
-            echo "Conflicts detected, finalizing cherry-pick"
-            git add .
-            git commit --no-edit
-          fi
+          # ALWAYS try to finalize the cherry-pick
+          git add .
+          git commit --no-edit || true
 
       - name: Push branch
         run: |
