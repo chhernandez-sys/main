@@ -75,9 +75,11 @@ jobs:
           git push origin HEAD
 
       - name: Create PR
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: cherry-pick-${{ github.run_id }}
-          base: new_main
-          title: "Cherry-pick"
-          body: "Automated cherry-pick to new_main"
+        run: |
+          gh pr create \
+            --base new_main \
+            --head cherry-pick-${{ github.run_id }} \
+            --title "Cherry-pick" \
+            --body "Automated cherry-pick to new_main"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
