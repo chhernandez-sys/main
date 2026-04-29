@@ -44,36 +44,26 @@ jobs:
             echo "mode=commit" >> $GITHUB_OUTPUT
             echo "value=${{ github.event.inputs.commit }}" >> $GITHUB_OUTPUT
           else
-            echo "mode=branch" >> $GITHUB_OUTPUT
-            echo "value=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
+            echo "mode=merge_commit" >> $GITHUB_OUTPUT
+            echo "value=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_OUTPUT
           fi
 
-      # Prepare base branch from new_main
+      # Prepare base from new_main
       - name: Create branch from new_main
         run: |
           git fetch origin
           git checkout -B new_main origin/new_main
           git checkout -b cherry-pick-${{ github.run_id }}
 
-      # Cherry-pick depending on mode
+      # Cherry-pick logic
       - name: Cherry-pick
         run: |
           if [ "${{ steps.vars.outputs.mode }}" = "commit" ]; then
             echo "Cherry-picking single commit"
             git cherry-pick ${{ steps.vars.outputs.value }} || exit 1
           else
-            echo "Cherry-picking PR commits"
-
-            git fetch origin ${{ steps.vars.outputs.value }}
-            git fetch origin main
-
-            git log --reverse --pretty=format:"%H" \
-              origin/${{ steps.vars.outputs.value }} ^origin/main > commits.txt
-
-            for commit in $(cat commits.txt); do
-              echo "Cherry-picking $commit"
-              git cherry-pick $commit || exit 1
-            done
+            echo "Cherry-picking merge commit (works for merge, squash, rebase)"
+            git cherry-pick -m 1 ${{ steps.vars.outputs.value }} || exit 1
           fi
 
       - name: Push branch
