@@ -31,43 +31,59 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set commit SHA
-        id: vars
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "sha=${{ github.event.inputs.commit }}" >> $GITHUB_OUTPUT
-          else
-            echo "sha=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_OUTPUT
-          fi
-
       - name: Configure Git
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
 
+      # Determine mode (PR vs manual)
+      - name: Set variables
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=commit" >> $GITHUB_OUTPUT
+            echo "value=${{ github.event.inputs.commit }}" >> $GITHUB_OUTPUT
+          else
+            echo "mode=branch" >> $GITHUB_OUTPUT
+            echo "value=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
+          fi
+
+      # Prepare base branch from new_main
       - name: Create branch from new_main
         run: |
-          git checkout new_main
-          git pull origin new_main
-          git checkout -b cherry-pick-${{ steps.vars.outputs.sha }}
+          git fetch origin
+          git checkout -B new_main origin/new_main
+          git checkout -b cherry-pick-${{ github.run_id }}
 
-      - name: Cherry-pick commit
+      # Cherry-pick depending on mode
+      - name: Cherry-pick
         run: |
-          git cherry-pick ${{ steps.vars.outputs.sha }} || true
+          if [ "${{ steps.vars.outputs.mode }}" = "commit" ]; then
+            echo "Cherry-picking single commit"
+            git cherry-pick ${{ steps.vars.outputs.value }} || exit 1
+          else
+            echo "Cherry-picking PR commits"
 
-      - name: Handle conflict (if any)
-        run: |
-          git add .
-          git commit -m "cherry-pick ${{ steps.vars.outputs.sha }} (conflict)" || true
+            git fetch origin ${{ steps.vars.outputs.value }}
+            git fetch origin main
+
+            git log --reverse --pretty=format:"%H" \
+              origin/${{ steps.vars.outputs.value }} ^origin/main > commits.txt
+
+            for commit in $(cat commits.txt); do
+              echo "Cherry-picking $commit"
+              git cherry-pick $commit || exit 1
+            done
+          fi
 
       - name: Push branch
         run: |
-          git push origin cherry-pick-${{ steps.vars.outputs.sha }}
+          git push origin HEAD
 
       - name: Create PR
         uses: peter-evans/create-pull-request@v6
         with:
-          branch: cherry-pick-${{ steps.vars.outputs.sha }}
+          branch: cherry-pick-${{ github.run_id }}
           base: new_main
-          title: "Cherry-pick: ${{ steps.vars.outputs.sha }}"
-          body: "Automated cherry-pick (may contain conflicts)"
+          title: "Cherry-pick"
+          body: "Automated cherry-pick to new_main"
