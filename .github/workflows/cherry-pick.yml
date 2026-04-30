@@ -29,8 +29,11 @@ jobs:
       - name: Get commits from PR
         id: pr_commits
         run: |
-          commits=$(gh pr view ${{ github.event.inputs.pr_number }} --json commits --jq '.commits[].oid')
-          echo "commits=$commits" >> $GITHUB_OUTPUT
+          echo "commits<<EOF" >> $GITHUB_OUTPUT
+          gh pr view ${{ github.event.inputs.pr_number }} \
+            --json commits \
+            --jq '.commits[].oid' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -42,11 +45,11 @@ jobs:
 
       - name: Cherry-pick commits
         run: |
-          for commit in ${{ steps.pr_commits.outputs.commits }}
+          while read commit
           do
             echo "Cherry-picking $commit"
             git cherry-pick $commit || true
-          done
+          done <<< "${{ steps.pr_commits.outputs.commits }}"
 
           git add .
           git commit --no-edit || true
