@@ -16,16 +16,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout full repository history to allow cherry-pick operations
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # Configure Git identity for commits created by the workflow
       - name: Configure Git
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
 
+      # Retrieve all commit SHAs from the given PR using GitHub CLI
+      # Store them as a multiline output
       - name: Get commits from PR
         id: pr_commits
         run: |
@@ -37,33 +41,60 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Reset local branch to latest new_main and create a working branch
       - name: Create branch from new_main
         run: |
           git fetch origin
           git checkout -B new_main origin/new_main
           git checkout -b cherry-pick-${{ github.run_id }}
 
-      - name: Cherry-pick commits
+      # Apply each commit individually
+      # If a conflict occurs, create a commit with the unresolved changes
+      # Ensure the repository is cleaned before each cherry-pick attempt
+      - name: Cherry-pick commits (robust)
+        id: cherry-pick
         run: |
+          has_conflicts=false
+
           while read commit
           do
             echo "Cherry-picking $commit"
-            git cherry-pick $commit || true
+
+            # Abort any previous incomplete cherry-pick state
+            git cherry-pick --abort || true
+
+            if ! git cherry-pick $commit; then
+              echo "Conflict detected in $commit"
+              has_conflicts=true
+
+              # Stage conflicted files and create a commit to continue
+              git add .
+              git commit -m "Cherry-pick with conflicts: $commit"
+            fi
+
           done <<< "${{ steps.pr_commits.outputs.commits }}"
 
-          git add .
-          git commit --no-edit || true
+          echo "has_conflicts=$has_conflicts" >> $GITHUB_OUTPUT
 
+      # Push the new branch to the remote repository
       - name: Push branch
         run: |
           git push origin HEAD
 
+      # Create a pull request targeting new_main
+      # Include a warning message if conflicts occurred
       - name: Create PR
         run: |
+          BODY="Automated cherry-pick from PR #${{ github.event.inputs.pr_number }}"
+
+          if [ "${{ steps.cherry-pick.outputs.has_conflicts }}" = "true" ]; then
+            BODY="$BODY"$'\n\n'"Conflicts occurred during cherry-pick. Please review."
+          fi
+
           gh pr create \
             --base new_main \
             --head cherry-pick-${{ github.run_id }} \
             --title "Cherry-pick PR #${{ github.event.inputs.pr_number }}" \
-            --body "Automated cherry-pick from PR #${{ github.event.inputs.pr_number }}"
+            --body "$BODY"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
